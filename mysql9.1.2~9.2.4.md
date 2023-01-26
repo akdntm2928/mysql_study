@@ -55,8 +55,8 @@ ex) 쓰레드 갯수가 많아질수록 속도가 빨라진다 하지만
 <table style="border:1px solid #cccc">
 <tbody>
 <tr>
-    <th colspan="2">index <th>
-    <th colspan="2">filesort<th>
+    <th colspan="2">index </th>
+    <th colspan="1">filesort</th>
 </tr>
 
 <tr>
