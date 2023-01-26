@@ -55,11 +55,11 @@ mysql 8.0에서는 여러개에 쓰레드을 통해 한쿼리을 병렬처리 �
 <tbody>
 <tr>
     <th colspan=2>index <th>
-    <th colspan=1>filesort<th>
+    <th colspan=>filesort<th>
 </tr>
 
 <tr>
-    <th>장점<th>      
+    <th>장점</th>      
     <td>
         select,update등 인덱스가 이미 정렬 되있어서
         매우 빠르다
@@ -70,7 +70,7 @@ mysql 8.0에서는 여러개에 쓰레드을 통해 한쿼리을 병렬처리 �
     </td>
 </tr>
 <tr>
-    <th>단점<th>        
+    <th>단점</th>        
     <td>
         filesort 장점과 반대로 insert,update,delete시 추가해야되서 매우느리다
     </td>
@@ -127,15 +127,17 @@ mysql 8.0에서는 여러개에 쓰레드을 통해 한쿼리을 병렬처리 �
     </td>
 </tr>
 <tr>
+
 <tr>
     <td>인덱스를 사용한 정렬</td>
     <td> 별도 표기 없음</td>
-
 </tr>
+
 <tr>
     <td>조인에 드라이빙 테이블에 칼럼으로 정렬 방식</td>
     <td>Using filesort</td>
 </tr>
+
 <tr>
     <td>조인에서 조인 결과를 임시테이블로 저장후 정렬</td>
     <td> using temorary; using filesort</td>
