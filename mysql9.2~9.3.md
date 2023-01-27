@@ -28,7 +28,7 @@ group 3가지 방식이 있는데 이방식에 대한서 알아가보자
 ## 임시테이블 방식
 
 group by에서 사용한 값이 드라이빙이든 드리븐 테이블이든 index을 사용하지 못할떄 정렬을 해야되므로 멀티머지가 발생해 임시테이블이 생성된다
-mysql 8.0 이하버전은 임시테이블에서 그룹화가 된값에 대해서 정렬을 하지않는데    ex (using filesort X) 8.0 이하버전은 filesort가 발생되므로 굳이 정렬이 필요없다면 order by null을 통해서 속도을 증가 시킬수 있다.
+mysql 8.0 이하버전은 임시테이블에서 그룹화가 된값에 대해서 정렬을 하지않는데  ex (using filesort X) 8.0 이하버전은 filesort가 발생되므로 굳이 정렬이 필요없다면 order by null을 통해서 속도을 증가 시킬수 있다.
 
 
 <br>
@@ -147,6 +147,57 @@ MMAP을 통한 임시테이블에 내용을 보기위해서는 mysql접속후 ls
 일반적으로 임시테이블을 생성할때 extra에 Using temporary가 표시된다 하지만
 마지막 3개 쿼리에서는 Using temporary 표시 되지 않는다.<br>
 마지막 쿼리는 유니크 인덱스가 없는 임시테이블이 생성되는데 이떄 유니크 인덱스가 있는 나머지 위에 4개 쿼리보다 속도측면에서 많이 느리다.
+
+## 임시 테이블이 임시테이블 바로 생성 되는경우
+
+-  union이나 union All에서 select되는 칼럼 중에서 길이가 512바이트 이상인 크기에 칼럼인 경우
+
+- group by나 distinct 칼럼에서 512바이트 이상인 크기의 칼럼인 경우
+
+<br>
+
+- 메모리 임시테이블 크기가(memory스토리지엔지) tmp_table_size 또느 max_heap_table_size 보다 큰 경우
+
+## 임시 테이블 관려 변수
+
+실행 계획상 using temporary가 표시가 되면 우리는 임시테이블 메모리에 생성이 됬는지 디스크에 생성이 됬는지 알수가 없다 
+이를 확인 할려면 상태변수 'show session status like 'Create_tmp%' 변수을 통해 확인이 가능하다
+
+FLUSH STATUS: 사용해서 임시테이블에 올라가 있는 페이지를 초기화 시킨다.
+
+SHOW SESSION STATUS LIKE 'Create_tmp%' 검색을 하면
+
+<table>
+<thead>
+<tr>
+    <th>
+        variable name
+    </th>
+    <th>
+        Value
+    </th>
+</tr>
+</thead>
+<tbody>
+    <tr>
+    <td>
+        Create_tmp_disk_tables
+    </td>
+    <td>
+        디스크에 임시테이블 생성 갯수
+    </td>
+   </tr>
+   <tr>
+    <td>
+        Create_tmp_tables
+    </td>
+    <td>
+        메모리,디스크에 임시테이블 생성 갯수
+    </td>
+   </tr>
+<tbody>
+</table>
+표시가 된다
 
 
 
