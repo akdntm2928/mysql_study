@@ -177,7 +177,9 @@ index_merge_intersection : 교집합
 index_merge_sort_union : 절렬후 합집합
 index_merge_union: 합집합
 
-### 인덱스 머지 - 교집합(index_merge_intersection)
+------------------------------------- 
+
+## 인덱스 머지 - 교집합(index_merge_intersection)
 만약에 primary key로 emp_no 세컨더리키로 first_name이 있을떄 경우을 살펴 보자
     
         EXPLIAN SELECT * FROM employees WHERE frist_name='Georgi' NAD emp_no BETWEEN 10000 AND 20000
@@ -191,6 +193,53 @@ index_merge_union: 합집합
         .. 쿼리 내용
 
 이와 같이 옵션을 비활성화 하여 사용 할 수 있다.
+
+-----------------------------------
+
+## 인덱스 머지 - 합집합(index_merge_union)
+ index_merge_intersection과 동일한 방식으로 두개 컬럼 조건을 OR로 사용 하는방법이다. 각 테이블에 하나식 레코드을 가져와서 중복체크 작업을한다
+ 두집합은 프라이머리 키 기준으로 정렬을 한다
+ 이떄 사용되는 중복제거 알고리즘은 우선 큐라고 한다.
+ extra에서는 using union(ix_firstname,ix_hiredate)로 표시가 된다
+
+-------------------------------------
+
+## 인덱스 머지 - 합집합-정력(index_merge_sort_union)
+
+인덱스 합집합과 동일하게 동작 하지만 각인덱스 정렬기준이 각 칼럼에 index에 조건을 수행후 정렬후에 우선큐 작업을 진행한다 
+extra에서는 using sort_union(ix_firstname,ix_hiredate)로 표시가 된다
+<br>
+
+--------------------------------
+
+## 세미 조인(semijoin)
+다른 테이블과 실제로 조인을 하지않고 다른 테이블에서 조건 일치하느 레코드가 있는지 체크하는 쿼리를 세미 조인(semijoin) 이라고 한다.
+
+
+다음 세미쿼리에 최적화 기능이 없을경우 employees에 테이블을 풀스캔을 한다
+
+        SELECT * 
+            FROM employees e 
+            WHERE e.emp_no IN
+                (SELECT de.emp_no FROM demp_emp de de.FROM='1995-01-01')
+
+세미 조인 형태는 세미 조인 형태와 안티 세미 조인 형태 있다.
+
+세미 조인 형태는 "=(subquery)" 형태와 in (subquery) 형태의 방식은
+
+-  세미 조인 최적화
+-  IN-to-EXISTS 최적화
+-  MATERIALIZATION 최적화
+
+안티 세미 조인형태는 "<> (subquery)" 형태와 "NOT IN (subquery)" 형태로 방식은
+- In-to-EXISTS 최적화
+-  MATERIALIZATION 최적화
+
+
+
+
+
+
 
 
 
