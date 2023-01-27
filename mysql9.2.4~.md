@@ -30,6 +30,150 @@ group 3가지 방식이 있는데 이방식에 대한서 알아가보자
 group by에서 사용한 값이 드라이빙이든 드리븐 테이블이든 index을 사용하지 못할떄 정렬을 해야되므로 멀티머지가 발생해 임시테이블이 생성된다
 mysql 8.0 이하버전은 임시테이블에서 그룹화가 된값에 대해서 정렬을 하지않는데    ex (using filesort X) 8.0 이하버전은 filesort가 발생되므로 굳이 정렬이 필요없다면 order by null을 통해서 속도을 증가 시킬수 있다.
 
------------------------------------
 
-# test
+<br>
+
+-----------------------------------
+<br>
+
+# DISTINCT 처리
+
+DISTINCT처리는 집합함수 MAX,MIN,COUNT에서 사용하는 것과 SELECT DISTINCT에서 처리하는 방식이 다르다 그리고 이 2가지에 대해서 살펴 볼것이고 DISTINCT도 GROUP와 같은 방식으로 처리가 되어서 INDEX가 걸리지 않은 칼럼으로 DISTINCT시 임시 테이블 생성해서 해당 칼럼을 기준으로 그룹화을 한다 하지만 extra에 using temporary에 메세지가 출력 되지 않는다.
+
+<br>
+
+## 1.SELECT DISTINCT 처리
+<br>
+
+간혹 사람들이 DISKTICT을 사용할때 DISTINCT(칼럼명)처럼 사용하는데 DISTINCT는 SELECT절에 ()괄호가 있든 없든 MYSQL은 SELECT절에 포함된 모든 칼럼에 대해서 DIKSTNCT(그룹화)을 한다
+
+
+     SELECT DISTINCTfrist_name,last_name FROM employees;
+
+     SELECT DISTINCT(frist_name) ,last_name FROM employees;
+
+    첫번째꺼와 두번째꺼는 동일하게 두개에 칼럼 그룹화한다.
+    동일한 쿼리이다.
+
+## 2. 집합 함수와 함께 사용된 DISTINCT 
+<br>
+
+집합 함수 COUNT(), MAX(), MIN()을 DISTINCT와 함께 사용될떄 
+그 집합 함수 내에서만 DISTINCT(그룹화)만 한다 <br> SELECT COUNT(DISTINCT emp_no),salary는 COUNT(DISTINCT)만 그룹하고 EMP_NO은 그룹화을 하지 않는다.
+이때 해당 칼럼에 index가 존재하지 않는 경우 각각  임시 테이블 생성을 한다.
+ex) EXPLAIN에서는 EXTRA에서 Using Temporary는 가 표시가 나지 않는다.
+
+또한 다음과 같은 쿼리는
+
+    SELECT COUNT(DISTINCT S.salary),
+           COUNT(DISTINCT e.last_name)
+    FROM  employees e, salaries s
+    WHERE e.emp_no=s.emp_no
+        AND e.emp_no BETWEEN 100001 AND 100100;
+
+위와 같은 쿼리는 집합 함수 내에 DISTINCT는 각각에 임시테이블 생성한다.
+이런한 특징때문에 집합 함수내에 각각에 DISTINCT을 사용할 경우 속도가 많이 저하 될 수 있다.
+
+<br>
+
+----------------------------
+
+<br>
+
+## 내부 임시 테이블에 활용
+
+<br>
+
+MYSQL 스토리지 엔진으로 부터 받아온 레코드를 정렬하거나 그룹핑할 때는 내부적으로 임시 테이블을 생성한다. 내부적(internal)이라는 단어가 포함되는 이유는 CREATE TEMPORARY TABLE로 만든 임시 테이블과는 다르기 떄문이다. 일반적으로 MYSQL엔진에서 생성된 임시테이블은 메모리에서 사용된 뒤에 크기가 커지게 되면 디스크메모리에 옮기게 된다
+이때 메모리을 거치지 않고 바로 디스크에 임시테이블이 생성되는 경우가 있다.
+또한 MYSQL엔지에서 생겨난 임시테이블은 사용자가 일기/쓰기 작업을 할수 없다.
+그리고 사용자가 임시테이블에서 쿼리가 처리되면 자동으로 삭제가 된다.
+
+
+<br>
+
+--------------------------
+
+<br>
+
+## 메모리 임시테이블과 디스크 임시 테이블
+
+MYSQL8.0 이하 버전에서 메모리을 통한 임시테이블 생성은 MEMORY 스토리지 엔진를 사용하고 디스크을 통한 임시테이블 생성은 MYISAM 스트리지엔진를 사용하게됬다.
+MYSQL8.0부터는 TempTable이라는 스토리지 엔진을 사용하고 디스크에 저장시에는 innodb 스트리지 엔진을 사용하게 됬다.
+
+8.0 이하 버전은 메모리을 통한 임시테이블이 MEMORY 스토리진엔진 사용하는데 이때 
+VARBINARY,VARCHAR등에 가변길이가 있는 칼럼들은 최대 길이 만큼 메모리에 할당해서 메모리에 낭비가 심하고 디스크을 통한 임시테이블 생성시 MYISAM 스토리지 엔진은 트랙잭션을 지원안한다는 문제가 있다.
+그래서 8.0부터는 메모리을 통한 임시테이블을 사용시 TempTable을 통한 칼럼에 가변길이을 예측하여 메모리을 생성하였고 디스크을 통한 임시테이블을 사용시 innodb 스토리지엔진을 사용해서 보다 나은 서비스을 제공 하고 있다.
+
+8.0 부터는 internal_tmp_mem_storage_engine을 통해서 메모리을 통한 임시테이블 생성을 
+메모리 스토리지엔지을 사용하지 TempTable스토리지엔진을 사용하지 정할 수 있다. ( 기본 값은 TempTable 스토리지엔진을 사용한다. ) 메모리을 통한 임시테이블에 크기는 temptable_max_ram을 통해서 설정 할수 있는데 기본값은 1GA로 초과시 디스크을 통한 임시테이블이 생성된다 이때 8.0부터는 디스크을 통한 임시테이블 생성을 MMAP 파일로 디스크에 기록, innoDB 테이블로 기록 할지 선택 할수 있다.
+
+메모리을 통한 임시테이블 생성은 다음과 같이 두개에 변수을 통해서 설정 할수 있다.
+
+    - tmp_table_size
+        mysql엔진으로 인하여 내부에 메모리 임시테이블에 크기을 결정하는 변수
+
+    - max_heap_table_size
+        사용자가 생성한 메모리 스토리지엔진 테이블에 크기을 결정하는 변수
+
+8.0 부터 MMAP 파일, InnoDB테이블로 전환할지 template_use_mmap 시스템 변수롤 설정할 수있다. 이떄 기본값은 MMAP로 파일 기록하게 된다 이는 innodb을 사용한 임시테이블보다는 
+MMAP을 파일을 사용하는것이 오버헨드가 더줄기 떄문이다 이때 생기는 임시테이블은 tmpdir시스템 변수에 정의된 디렉터리에 저장된다.
+
+MMAP을 통한 임시테이블에 내용을 보기위해서는 mysql접속후 lsof -p 'pidof mysqlid' 명령으로 임시디스크가 몇개을 사용했는지 알수 있다.
+마지막으로 mmap,inndoDB가 아닌 다른 테이블로 임시테이블을 생성 하고 싶을때는 innernal_tmp_disk_storage_engine을 사용해서 스토리지엔진에 이름을 적어주면된다.
+이때 기본값은 innoDB로 설정이 되어있다.
+
+----------------------------------------------
+<br>
+
+## 임시 테이블이 필요한 쿼리
+
+<br>
+
+다음과 같은 패턴은 myslq 엔진에서 테이터 가공을 위해서 임시테이블을 생성해야되는 대표적이 쿼리 케이스이다
+
+    - ORDER BY와 GROUP BY에 명시된 칼럼이 다른 쿼리
+
+    - 조인시 ORDER BY나 GROUP BY에 사용된 칼럼이 
+       드라이빙 테이블에 칼럼이 아닌경우
+
+    - DISTINCT와 ORDER BY가 같은 사용되거나, DISTINCT가 인덱스 처리되지 못하는 쿼리
+
+    - UNION이나 UNION DISTINCT가 사용된쿼리 (select_typ에 UNION RESULT인경우)
+
+    - 쿼리에 실행 계획에 DERIVED인 쿼리
+
+
+일반적으로 임시테이블을 생성할때 extra에 Using temporary가 표시된다 하지만
+마지막 3개 쿼리에서는 Using temporary 표시 되지 않는다.<br>
+마지막 쿼리는 유니크 인덱스가 없는 임시테이블이 생성되는데 이떄 유니크 인덱스가 있는 나머지 위에 4개 쿼리보다 속도측면에서 많이 느리다.
+
+
+
+
+
+
+
+
+    
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    
+
+
+
+
+
+
